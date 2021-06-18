@@ -4,8 +4,12 @@
 Python port of the extended Node.js EventEmitter 2 approach providing namespaces, wildcards and TTL.
 """
 
-
 from time import time
+
+try:
+    import asyncio
+except ImportError:
+    import uasyncio as asyncio
 
 
 __author__ = "Marcel Rieger"
@@ -270,9 +274,16 @@ class Listener(object):
         returns whether it reached zero or not.
         """
         if self.ttl != 0:
-            self.func(*args, **kwargs)
+            try:
+                coro = self.func(*args, **kwargs)
+            except Exception:
+                pass
+            else:
+                if self._iscoroutine(coro):
+                    asyncio.create_task(coro)
 
         if self.ttl > 0:
             self.ttl -= 1
 
-        return self.ttl == 0
+    def _iscoroutine(self, coro):
+        return hasattr(coro, '__next__')
